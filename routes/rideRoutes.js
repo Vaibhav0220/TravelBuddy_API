@@ -10,6 +10,6 @@ const router = express.Router();
 
 router.post("/create", auth, createRide);
 router.post("/all", auth, getAllRides);
-router.get("/:id", auth, getRideById);
+router.post("/getRideById", auth, getRideById);
 
 module.exports = router;

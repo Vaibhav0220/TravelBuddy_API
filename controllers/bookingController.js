@@ -97,8 +97,9 @@ exports.createBooking = [
 ];
 
 // Get all bookings for a user
+
 exports.getUserBookings = async (req, res) => {
-  const { sortField = "_id", sortValue = "asc" } = req.query;
+  const { sortField = "_id", sortValue = "asc", searchValue = null } = req.body;
 
   // Validate sortField and sortValue
   if (!["_id", "user_id", "ride_id", "seats"].includes(sortField)) {
@@ -109,12 +110,44 @@ exports.getUserBookings = async (req, res) => {
   }
 
   try {
-    const bookings = await Booking.find({ user_id: req.user._id }).sort({
+    // Initialize filter with the mandatory user_id
+    const filter = { user_id: req.user._id };
+
+    // If searchValue is not null or an empty object, add it to the filter
+    if (searchValue && Object.keys(searchValue).length > 0) {
+      Object.assign(filter, searchValue);
+    }
+
+    // Retrieve the bookings with sorting and filtering
+    const bookings = await Booking.find(filter).sort({
       [sortField]: sortValue === "asc" ? 1 : -1,
     });
+
     res.status(200).json(bookings);
   } catch (err) {
     console.error("Error retrieving bookings:", err);
     res.status(500).json({ message: err.message });
   }
 };
+
+// exports.getUserBookings = async (req, res) => {
+//   const { sortField = "_id", sortValue = "asc" } = req.query;
+
+//   // Validate sortField and sortValue
+//   if (!["_id", "user_id", "ride_id", "seats"].includes(sortField)) {
+//     return res.status(400).json({ error: "Invalid sort field" });
+//   }
+//   if (!["asc", "desc"].includes(sortValue)) {
+//     return res.status(400).json({ error: "Invalid sort value" });
+//   }
+
+//   try {
+//     const bookings = await Booking.find({ user_id: req.user._id }).sort({
+//       [sortField]: sortValue === "asc" ? 1 : -1,
+//     });
+//     res.status(200).json(bookings);
+//   } catch (err) {
+//     console.error("Error retrieving bookings:", err);
+//     res.status(500).json({ message: err.message });
+//   }
+// };

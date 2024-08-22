@@ -69,9 +69,16 @@ exports.getAllRides = async (req, res) => {
 };
 
 // Get a ride by ID
+
 exports.getRideById = async (req, res) => {
   try {
-    const ride = await Ride.findById(req.params.id);
+    const { id } = req.body; // Extract the ride ID from the request body
+
+    if (!id) {
+      return res.status(400).json({ message: "Ride ID is required" });
+    }
+
+    const ride = await Ride.findById(id);
     if (!ride) return res.status(404).json({ message: "Ride not found" });
 
     res.status(200).json(ride);
@@ -79,3 +86,14 @@ exports.getRideById = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// exports.getRideById = async (req, res) => {
+//   try {
+//     const ride = await Ride.findById(req.params.id);
+//     if (!ride) return res.status(404).json({ message: "Ride not found" });
+
+//     res.status(200).json(ride);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
