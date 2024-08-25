@@ -8,13 +8,45 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
 // Nodemailer configuration
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
+
+async function sendOTP(email, otp) {
+  let transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  // const mailOptions = {
+  //   from: process.env.EMAIL_USER,
+  //   to: email,
+  //   subject: "Your OTP for Password Reset",
+  //   text: `Hello ${user.name},\n\nYour OTP for password reset is: ${otp}.\nPlease use this OTP to reset your password.\n\nThank you!`,
+  // };
+
+  let mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Your OTP Code",
+    text: `Your OTP code is ${otp}.`,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return otp;
+  } catch (error) {
+    console.error("Error sending email: ", error);
+    throw error;
+  }
+}
 
 // Registration
 exports.register = async (req, res) => {
@@ -43,6 +75,15 @@ exports.register = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Send OTP via email
+    // const mailOptions = {
+    //   from: process.env.EMAIL_USER,
+    //   to: email,
+    //   subject: "Your OTP for Travel Buddy Registration",
+    //   text: `Hello ${name},\n\nYour OTP for Travel Buddy registration is: ${otp}.\nPlease verify your account using this OTP.\n\nThank you!`,
+    // };
+
+    let receiveOTP = await sendOTP(email, otp);
     const newUser = new User({
       name,
       email,
@@ -54,15 +95,7 @@ exports.register = async (req, res) => {
     });
     await newUser.save();
 
-    // Send OTP via email
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Your OTP for Travel Buddy Registration",
-      text: `Hello ${name},\n\nYour OTP for Travel Buddy registration is: ${otp}.\nPlease verify your account using this OTP.\n\nThank you!`,
-    };
-
-    transporter.sendMail(mailOptions);
+    // await transporter.sendMail(mailOptions);
 
     res.status(201).json({
       message: "User registered successfully. Please verify your OTP.",
@@ -142,7 +175,7 @@ exports.forgotPassword = async (req, res) => {
       text: `Hello ${user.name},\n\nYour OTP for password reset is: ${otp}.\nPlease use this OTP to reset your password.\n\nThank you!`,
     };
 
-    transporter.sendMail(mailOptions);
+    // transporter.sendMail(mailOptions);
 
     res.status(200).json({ message: "OTP sent to your email" });
   } catch (err) {
