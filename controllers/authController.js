@@ -8,13 +8,102 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
 // Nodemailer configuration
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
+
+// // Registration
+// exports.register = async (req, res) => {
+//   const { name, email, password, phone_number } = req.body;
+
+//   try {
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser)
+//       return res.status(400).json({ message: "User already exists" });
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     let profile_pic_url = "default-sample-pic-url";
+
+//     if (req.file) {
+//       const compressedImage = await sharp(req.file.buffer)
+//         .resize(150, 150)
+//         .toBuffer();
+//       const imgBBResponse = await axios.post(
+//         `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+//         {
+//           image: compressedImage.toString("base64"),
+//         }
+//       );
+//       profile_pic_url = imgBBResponse.data.data.url;
+//     }
+
+//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+//     const newUser = new User({
+//       name,
+//       email,
+//       password: hashedPassword,
+//       phone_number,
+//       profile_pic: profile_pic_url,
+//       otp,
+//       isVerified: false,
+//     });
+//     await newUser.save();
+
+//     // Send OTP via email
+//     const mailOptions = {
+//       from: process.env.EMAIL_USER,
+//       to: email,
+//       subject: "Your OTP for Travel Buddy Registration",
+//       text: `Hello ${name},\n\nYour OTP for Travel Buddy registration is: ${otp}.\nPlease verify your account using this OTP.\n\nThank you!`,
+//     };
+
+//     transporter.sendMail(mailOptions);
+
+//     res.status(201).json({
+//       message: "User registered successfully. Please verify your OTP.",
+//       userID: newUser._id,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+async function sendOTP(email, otp) {
+  let transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  // const mailOptions = {
+  //   from: process.env.EMAIL_USER,
+  //   to: email,
+  //   subject: "Your OTP for Password Reset",
+  //   text: `Hello ${user.name},\n\nYour OTP for password reset is: ${otp}.\nPlease use this OTP to reset your password.\n\nThank you!`,
+  // };
+
+  let mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Your OTP Code",
+    text: `Your OTP code is ${otp}.`,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return otp;
+  } catch (error) {
+    console.error("Error sending email: ", error);
+    throw error;
+  }
+}
 
 // Registration
 exports.register = async (req, res) => {
@@ -43,6 +132,15 @@ exports.register = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Send OTP via email
+    // const mailOptions = {
+    //   from: process.env.EMAIL_USER,
+    //   to: email,
+    //   subject: "Your OTP for Travel Buddy Registration",
+    //   text: `Hello ${name},\n\nYour OTP for Travel Buddy registration is: ${otp}.\nPlease verify your account using this OTP.\n\nThank you!`,
+    // };
+
+    let receiveOTP = await sendOTP(email, otp);
     const newUser = new User({
       name,
       email,
@@ -54,15 +152,7 @@ exports.register = async (req, res) => {
     });
     await newUser.save();
 
-    // Send OTP via email
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Your OTP for Travel Buddy Registration",
-      text: `Hello ${name},\n\nYour OTP for Travel Buddy registration is: ${otp}.\nPlease verify your account using this OTP.\n\nThank you!`,
-    };
-
-    transporter.sendMail(mailOptions);
+    // await transporter.sendMail(mailOptions);
 
     res.status(201).json({
       message: "User registered successfully. Please verify your OTP.",
@@ -240,22 +330,23 @@ exports.resendOTP = async (req, res) => {
     await user.save();
 
     // Send the OTP via email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER, // Your email
-        pass: process.env.EMAIL_PASS, // Your password
-      },
-    });
+    sendOTP(email, otp);
+    // const transporter = nodemailer.createTransport({
+    //   service: "gmail",
+    //   auth: {
+    //     user: process.env.EMAIL_USER, // Your email
+    //     pass: process.env.EMAIL_PASS, // Your password
+    //   },
+    // });
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Your OTP Code for Verification",
-      text: `Your OTP code is ${otp}. This code is valid for 10 minutes.`,
-    };
+    // const mailOptions = {
+    //   from: process.env.EMAIL_USER,
+    //   to: email,
+    //   subject: "Your OTP Code for Verification",
+    //   text: `Your OTP code is ${otp}. This code is valid for 10 minutes.`,
+    // };
 
-    await transporter.sendMail(mailOptions);
+    // await transporter.sendMail(mailOptions);
 
     res.status(200).json({ message: "OTP sent successfully" });
   } catch (err) {
