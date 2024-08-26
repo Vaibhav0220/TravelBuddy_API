@@ -74,31 +74,68 @@ exports.register = async (req, res) => {
 };
 
 // Login
-exports.login = async (req, res) => {
+
+exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    // Find user by email
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user.isVerified)
-      return res
-        .status(400)
-        .json({ message: "Please verify your email first" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
+    // Validate password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Invalid credentials" });
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid password" });
+    }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    // Generate token (e.g., JWT)
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
 
-    res.json({ token, userId: user._id });
+    // Send response with token, user ID, and other details
+    res.status(200).json({
+      token,
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      // password: user.password, // Be careful with sensitive information
+    });
   } catch (err) {
+    console.error("Error during login:", err);
     res.status(500).json({ message: err.message });
   }
 };
+
+// exports.login = async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(404).json({ message: "User not found" });
+
+//     if (!user.isVerified)
+//       return res
+//         .status(400)
+//         .json({ message: "Please verify your email first" });
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch)
+//       return res.status(400).json({ message: "Invalid credentials" });
+
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+//       expiresIn: "1h",
+//     });
+
+//     res.json({ token, userId: user._id });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
 
 // Verify OTP after Registration
 exports.verifyOtp = async (req, res) => {
@@ -170,6 +207,59 @@ exports.resetPassword = async (req, res) => {
 
     res.status(200).json({ message: "Password reset successfully" });
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const crypto = require("crypto"); // Used for generating OTP
+const nodemailer = require("nodemailer"); // For sending emails
+
+exports.resendOTP = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Find the user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if the user is already verified
+    if (user.isVerified) {
+      return res.status(400).json({ message: "User is already verified" });
+    }
+
+    // Generate a new OTP
+    const otp = crypto.randomInt(100000, 999999); // Generates a 6-digit OTP
+
+    // Save the OTP to the user's record (and optionally, an expiration time)
+    user.otp = otp;
+    user.otpExpires = Date.now() + 10 * 60 * 1000; // OTP valid for 10 minutes
+
+    await user.save();
+
+    // Send the OTP via email
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER, // Your email
+        pass: process.env.EMAIL_PASS, // Your password
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Your OTP Code for Verification",
+      text: `Your OTP code is ${otp}. This code is valid for 10 minutes.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: "OTP sent successfully" });
+  } catch (err) {
+    console.error("Error resending OTP:", err);
     res.status(500).json({ message: err.message });
   }
 };

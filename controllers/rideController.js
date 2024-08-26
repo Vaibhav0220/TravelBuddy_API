@@ -97,3 +97,75 @@ exports.getRideById = async (req, res) => {
 //     res.status(500).json({ message: err.message });
 //   }
 // };
+
+exports.rateDriver = async (req, res) => {
+  const { ride_id, driver_id, rating } = req.body;
+
+  try {
+    // Validate rating value
+    if (rating < 1 || rating > 5) {
+      return res
+        .status(400)
+        .json({ message: "Rating must be between 1 and 5" });
+    }
+
+    // Find the ride
+    const ride = await Ride.findById(ride_id);
+    if (!ride) {
+      return res.status(404).json({ message: "Ride not found" });
+    }
+
+    // Check if the driver exists
+    const driver = await User.findById(driver_id);
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    // Add the rating (you could store an array of ratings or update an average)
+    driver.ratings = driver.ratings || [];
+    driver.ratings.push({ ride_id, rating });
+
+    // Save the updated driver data
+    await driver.save();
+
+    res.status(200).json({ message: "Driver rated successfully" });
+  } catch (err) {
+    console.error("Error rating driver:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.reportDriver = async (req, res) => {
+  const { ride_id, driver_id, report } = req.body;
+
+  try {
+    // Validate report text
+    if (!report || report.trim().length === 0) {
+      return res.status(400).json({ message: "Report message is required" });
+    }
+
+    // Find the ride
+    const ride = await Ride.findById(ride_id);
+    if (!ride) {
+      return res.status(404).json({ message: "Ride not found" });
+    }
+
+    // Check if the driver exists
+    const driver = await User.findById(driver_id);
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    // Add the report (could store in an array or log it somewhere)
+    driver.reports = driver.reports || [];
+    driver.reports.push({ ride_id, report });
+
+    // Save the updated driver data
+    await driver.save();
+
+    res.status(200).json({ message: "Report submitted successfully" });
+  } catch (err) {
+    console.error("Error reporting driver:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
