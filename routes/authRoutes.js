@@ -36,5 +36,11 @@ router.post("/forgot-password", forgotPassword);
 
 // Reset password with OTP
 router.post("/reset-password", resetPassword);
+router.post("/update-user-details", updateUserDetails);
+router.post("/forgot-password", forgotPassword);
+router.post("/verifyOtpForPasswordReset", verifyOtpForPasswordReset);
+router.post("/resetPassword", resetPassword);
+router.post("/changePassword", changePassword);
+router.post("/verifyOtpAndChangePassword", verifyOtpAndChangePassword);
 
 module.exports = router;

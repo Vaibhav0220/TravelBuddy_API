@@ -354,3 +354,146 @@ exports.resendOTP = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// Update User Details
+exports.updateUserDetails = async (req, res) => {
+  const { email, name, phone_number } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (name) user.name = name;
+    if (phone_number) user.phone_number = phone_number;
+
+    if (req.file) {
+      const compressedImage = await sharp(req.file.buffer)
+        .resize(150, 150)
+        .toBuffer();
+      const imgBBResponse = await axios.post(
+        `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+        {
+          image: compressedImage.toString("base64"),
+        }
+      );
+      user.profile_pic = imgBBResponse.data.data.url;
+    }
+
+    await user.save();
+    res.status(200).json({ message: "User details updated successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Forgot Password (send OTP)
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "User not found" });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour expiry
+    await user.save();
+
+    await sendOTP(email, otp);
+    res.status(200).json({ message: "OTP sent to your email" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Verify OTP for Password Reset
+exports.verifyOtpForPasswordReset = async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.otp !== otp || user.resetPasswordExpires < Date.now()) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    res.status(200).json({ message: "OTP verified successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Reset Password with OTP
+exports.resetPassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "User not found" });
+
+    if (user.otp !== otp || user.resetPasswordExpires < Date.now()) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.otp = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Change Password
+exports.changePassword = async (req, res) => {
+  const { email, currentPassword, newPassword } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid current password" });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    await user.save();
+
+    await sendOTP(email, otp);
+    res
+      .status(200)
+      .json({
+        message: "OTP sent to your email. Please verify to change password.",
+      });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Verify OTP and Change Password
+exports.verifyOtpAndChangePassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.otp = null;
+    await user.save();
+
+    res.status(200).json({ message: "Password changed successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
