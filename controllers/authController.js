@@ -16,7 +16,7 @@ const crypto = require("crypto");
 //   },
 // });
 
-async function sendOTP(email, otp) {
+async function sendOTP(email, otp, mailOptionAlt) {
   let transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -40,11 +40,12 @@ async function sendOTP(email, otp) {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await transporter.sendMail(
+      mailOptionAlt == null ? mailOptions : mailOptionAlt
+    );
     return otp;
   } catch (error) {
     console.error("Error sending email: ", error);
-    throw error;
   }
 }
 
@@ -58,7 +59,8 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    let profile_pic_url = "default-sample-pic-url";
+    let profile_pic_url =
+      "https://letsenhance.io/static/8f5e523ee6b2479e26ecc91b9c25261e/1015f/MainAfter.jpg";
 
     if (req.file) {
       const compressedImage = await sharp(req.file.buffer)
@@ -176,6 +178,7 @@ exports.forgotPassword = async (req, res) => {
     };
 
     // transporter.sendMail(mailOptions);
+    sendOTP(email, otp, mailOptions);
 
     res.status(200).json({ message: "OTP sent to your email" });
   } catch (err) {
