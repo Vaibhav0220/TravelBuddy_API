@@ -48,7 +48,7 @@ exports.createRide = [
       });
       await newRide.save();
       res
-        .status(201)
+        .status(200)
         .json({ message: "Ride created successfully", rideID: newRide._id });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -58,11 +58,27 @@ exports.createRide = [
 
 // Get all rides (with sorting)
 exports.getAllRides = async (req, res) => {
-  const { sortField, sortValue } = req.body;
+  const { sortField, sortValue, origin, destination } = req.body;
 
   try {
-    const rides = await Ride.find().sort({ [sortField]: sortValue });
-    res.status(200).json(rides);
+    let query = {};
+
+    if (origin && destination) {
+      query = { origin: origin, destination: destination };
+    } else if (origin) {
+      query = { origin: origin };
+    } else if (destination) {
+      query = {
+        destination: destination,
+      };
+    } else {
+      query = {};
+    }
+
+    const rides = await Ride.find(query).sort({ [sortField]: sortValue });
+
+    let finalRes = { data: rides, noOFrec: rides.length };
+    res.status(200).json(finalRes);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -6,6 +6,13 @@ const sharp = require("sharp");
 const axios = require("axios");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const multer = require("multer");
+const upload = require("../middleware/upload");
+const FormData = require("form-data");
+const fs = require("fs");
+const path = require("path");
+
+const { ClientRequest } = require("http");
 
 // Nodemailer configuration
 // const transporter = nodemailer.createTransport({
@@ -50,29 +57,53 @@ async function sendOTP(email, otp, mailOptionAlt) {
 }
 
 // Registration
+
 exports.register = async (req, res) => {
+  console.table(req.body);
   const { name, email, password, phone_number } = req.body;
 
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser)
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(403).json({ message: "User already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    let profile_pic_url =
-      "https://letsenhance.io/static/8f5e523ee6b2479e26ecc91b9c25261e/1015f/MainAfter.jpg";
+    let profile_pic_url;
 
     if (req.file) {
-      const compressedImage = await sharp(req.file.buffer)
-        .resize(150, 150)
-        .toBuffer();
-      const imgBBResponse = await axios.post(
-        `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
-        {
-          image: compressedImage.toString("base64"),
-        }
-      );
-      profile_pic_url = imgBBResponse.data.data.url;
+      const file = req.file;
+      // const encoded = req.file.buffer.toString("base64");
+
+      // console.log("Image file being sent:", file.originalname);
+
+      let headers = {
+        Accept: "application/json",
+        "Content-Type": "multipart/form-data",
+      };
+      try {
+        const postResponse = await axios
+          .post(
+            `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+            file,
+            {
+              headers: headers,
+            }
+          )
+          .then(function (result) {
+            return result;
+          })
+          .catch((err) => err.response);
+
+        // const imgBBResponse = await axios.post(
+        //   `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+        //   form
+        // );
+        console.log("imgBBResponse: ", postResponse);
+        profile_pic_url = imgBBResponse.data.data.url;
+      } catch (error) {
+        console.error("Error uploading image: ", error);
+        throw new Error("Error uploading image");
+      }
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -126,7 +157,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "24h",
     });
 
     res.json({ token, userId: user._id, userData: user });
@@ -209,3 +240,130 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// exports.register = async (req, res) => {
+//   console.log(req.body);
+//   upload(req, res, async (err) => {
+//     if (err) {
+//       return res.status(500).json({ message: "Error uploading file." });
+//     }
+
+//     const { name, email, password, phone_number } = req.body;
+
+//     try {
+//       const existingUser = await User.findOne({ email });
+//       if (existingUser) {
+//         return res.status(403).json({ message: "User already exists" });
+//       }
+
+//       const hashedPassword = await bcrypt.hash(password, 10);
+//       let profile_pic_url =
+//         "https://letsenhance.io/static/8f5e523ee6b2479e26ecc91b9c25261e/1015f/MainAfter.jpg";
+
+//       if (req.file) {
+//         const compressedImage = await sharp(req.file.buffer)
+//           .resize(150, 150)
+//           .toBuffer();
+//         const imgBBResponse = await axios.post(
+//           `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+//           {
+//             image: compressedImage.toString("base64"),
+//           }
+//         );
+//         profile_pic_url = imgBBResponse.data.data.url;
+//       }
+
+//       const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+//       // Send OTP (You can uncomment this if you have the mailer setup)
+//       // const mailOptions = {
+//       //   from: process.env.EMAIL_USER,
+//       //   to: email,
+//       //   subject: "Your OTP for Travel Buddy Registration",
+//       //   text: `Hello ${name},\n\nYour OTP for Travel Buddy registration is: ${otp}.\nPlease verify your account using this OTP.\n\nThank you!`,
+//       // };
+
+//       let receiveOTP = await sendOTP(email, otp);
+
+//       const newUser = new User({
+//         name,
+//         email,
+//         password: hashedPassword,
+//         phone_number,
+//         profile_pic: profile_pic_url,
+//         otp,
+//         isVerified: false,
+//       });
+
+//       await newUser.save();
+
+//       // await transporter.sendMail(mailOptions); // Uncomment if using nodemailer
+
+//       res.status(201).json({
+//         message: "User registered successfully. Please verify your OTP.",
+//         userID: newUser._id,
+//       });
+//     } catch (err) {
+//       res.status(500).json({ message: err.message });
+//     }
+//   });
+// };
+
+// router.post("/register", upload.single("file"), async (req, res) => {
+
+// exports.register = async (req, res) => {
+//   const { name, email, password, phone_number } = req.body;
+
+//   try {
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(403).json({ message: "User already exists" });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     let profile_pic_url =
+//       "https://letsenhance.io/static/8f5e523ee6b2479e26ecc91b9c25261e/1015f/MainAfter.jpg";
+
+//     // Check if file was uploaded
+//     if (req.file) {
+//       const compressedImage = await sharp(req.file.path)
+//         .resize(150, 150)
+//         .toBuffer();
+
+//       const imgBBResponse = await axios.post(
+//         `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+//         {
+//           image: compressedImage.toString("base64"),
+//         }
+//       );
+
+//       profile_pic_url = imgBBResponse.data.data.url;
+//     }
+
+//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+//     let receiveOTP = await sendOTP(email, otp);
+
+//     const newUser = new User({
+//       name,
+//       email,
+//       password: hashedPassword,
+//       phone_number,
+//       profile_pic: profile_pic_url,
+//       otp,
+//       isVerified: false,
+//     });
+
+//     await newUser.save();
+
+//     res.status(201).json({
+//       message: "User registered successfully. Please verify your OTP.",
+//       userID: newUser._id,
+//     });
+//   } catch (err) {
+//     console.error("Server error: ", err);
+//     res
+//       .status(500)
+//       .json({ message: "Internal server error", error: err.message });
+//   }
+// };

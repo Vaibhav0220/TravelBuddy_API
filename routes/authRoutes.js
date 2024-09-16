@@ -24,6 +24,7 @@ const router = express.Router();
 
 // Registration
 router.post("/register", upload.single("profile_pic"), register);
+// router.post("/register", register);
 
 // Login
 router.post("/login", login);
