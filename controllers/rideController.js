@@ -1,8 +1,5 @@
-// controllers/rideController.js
 const Ride = require("../models/Ride");
 
-// Create a new ride
-// controllers/rideController.js
 const { body, validationResult } = require("express-validator");
 
 exports.createRide = [
@@ -13,6 +10,9 @@ exports.createRide = [
   body("departure_time")
     .isISO8601()
     .withMessage("Valid departure time is required"),
+  body("arrival_time")
+    .isISO8601()
+    .withMessage("Valid arrival time is required"),
   body("price_per_seat")
     .isNumeric()
     .withMessage("Price per seat must be a number"),
@@ -34,6 +34,7 @@ exports.createRide = [
       departure_time,
       price_per_seat,
       available_seats,
+      arrival_time,
     } = req.body;
     console.log(driver_id);
     try {
@@ -41,6 +42,7 @@ exports.createRide = [
         driver_id,
         vehicle_id,
         origin,
+        arrival_time,
         destination,
         departure_time,
         price_per_seat,
