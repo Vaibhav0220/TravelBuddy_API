@@ -14,6 +14,7 @@ const RideSchema = new mongoose.Schema({
   price_per_seat: { type: Number, required: true },
   arrival_time: { type: Date, required: true },
   available_seats: { type: Number, required: true },
+  available_seats: { type: Number, required: true },
 });
 
 module.exports = mongoose.model("Ride", RideSchema);
