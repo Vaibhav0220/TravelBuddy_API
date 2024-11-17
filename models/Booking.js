@@ -15,6 +15,7 @@ const BookingSchema = new mongoose.Schema(
         },
         seats: { type: Number, required: true },
         rideData: { type: String, required: true },
+        isCancle: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

@@ -86,10 +86,10 @@ exports.createBooking = [
                 user_id,
                 ride_id,
                 seats,
+                isCancle: false,
                 rideData: JSON.stringify(req.body.rideData),
             });
 
-            console.log("booking", booking);
             await booking.save();
             res.status(201).json({
                 message: "Booking created successfully",
@@ -134,10 +134,29 @@ exports.getUserBookings = async (req, res) => {
                 ride_id: item.ride_id,
                 seats: item.seats,
                 rideData: JSON.parse(item.rideData),
+                isCancle: item.isCancle,
             });
         });
 
         res.status(200).json({ temp });
+    } catch (err) {
+        console.error("Error retrieving bookings:", err);
+        res.status(500).json({ message: err.message });
+    }
+};
+exports.postCancelUserRide = async (req, res) => {
+    const { booking_id } = req.body;
+
+    try {
+        const filter = { _id: booking_id };
+
+        const bookings = await Booking.findOne(filter);
+        bookings.isCancle = true;
+
+        console.log("bookings", bookings);
+        await bookings.save();
+
+        res.status(200).json({ message: "Booking cancelled successfully" });
     } catch (err) {
         console.error("Error retrieving bookings:", err);
         res.status(500).json({ message: err.message });
